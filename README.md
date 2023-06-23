@@ -1,15 +1,8 @@
-## CU Robotics 2021 Robomaster Control Code
+## Tec 2023 Robomaster Control Code
 
 #### Description
-This repository contains CU Robotics' 2021 Control Code. Due to the coronavirus pandemic, only one robot (Infantry #1) was built for the 2021 season, so everything in this repository is specialized for the Infantry robot only.
+This repository contains Robotape Robotics' 2023 Control Code.
 
-Infantry robot capabilities:
-- Chassis capable of three axis range of motion enabled by mecanum wheels.
-- Turret with 120 degree pitch range of motion.
-- Turret capable of continuous 360 degree yaw rotation enabled by a slip ring.
-- Gun capable of firing 17mm projectiles at over 30mph.
-- FPV camera, giving the operator a realtime first-person view.
-- Installation points for the Robomaster referee system, a set of electronics that monitors the robot's virtual health and status.
 
 #### Requirements
 To build and upload this code to a Robomaster robot, you will need three things:
