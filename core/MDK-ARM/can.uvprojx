@@ -387,7 +387,7 @@
             <File>
               <FileName>startup_stm32f407xx.s</FileName>
               <FileType>2</FileType>
-              <FilePath>startup_stm32f407xx.s</FilePath>
+              <FilePath>.\startup_stm32f407xx.s</FilePath>
             </File>
           </Files>
         </Group>

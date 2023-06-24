@@ -96,17 +96,18 @@ uint32_t prevTick;
 #define RC_MOVE 1000
 #define MOVE_WHEEL 1000
 #define TURN_OFFSET 300
-#define INICIAL_TORRETA1 1000
-#define MAX_TORRETA1 1300
+#define INICIAL_TORRETA1 1500
+#define MAX_TORRETA1 2000
 #define MIN_TORRETA1 1000
 #define PASO_TORRETA1 0.5
-#define INICIAL_TORRETA2 1000
-#define MAX_TORRETA2 1200
-#define MIN_TORRETA2 1000
+#define INICIAL_TORRETA2 1400
+#define MAX_TORRETA2 1600
+#define MIN_TORRETA2 1300
 #define PASO_TORRETA2 0.5
 #define FEEDER_SPEED 500
 #define FEEDER_REVERSE_SPEED 1000
 #define SNAIL_WAIT_FEEDER 1000
+#define SNAIL_SPEED  1300
 
 int main(void) {
   // Essential Setup
@@ -219,8 +220,8 @@ int main(void) {
 			ch3 = local_rc_ctrl->rc.ch[3] * AMPLI;
 			ch4 = local_rc_ctrl->rc.ch[4] * AMPLI; //Disco
 			
-			sw0 = local_rc_ctrl->rc.s[0] * AMPLI;   //Switch left
-			sw1 = local_rc_ctrl->rc.s[1] * AMPLI;   //Switch right
+			sw0 = local_rc_ctrl->rc.s[0];   //Switch left
+			sw1 = local_rc_ctrl->rc.s[1];   //Switch right
 			
 			/*
 			* Joystick izquierdo
@@ -294,40 +295,53 @@ int main(void) {
 			
 			
 			if (ch3 == 0 && ch2 > RC_MOVE) { // 
-				//Giro a la derecha
-				wfl = MOVE_WHEEL;
-				wfr = MOVE_WHEEL;
-				wbl = MOVE_WHEEL;
-				wbr = MOVE_WHEEL;
+				if (sw1 == 2) {  //Abajo
+					//Giro a la derecha en su propio eje
+					wfl = MOVE_WHEEL;
+					wfr = MOVE_WHEEL;
+					wbl = MOVE_WHEEL;
+					wbr = MOVE_WHEEL;					
+				}
+				if (sw1 == 3) {   //Enmedio
+					//Movimiento lateral a la derecha sin avanzar
+					wfl = -MOVE_WHEEL;
+					wfr = -MOVE_WHEEL;
+					wbl = MOVE_WHEEL;
+					wbr = MOVE_WHEEL;					
+				}
 				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*1, wfl*1);
 			}	
 			
 			if (ch3 == 0 && ch2 < -RC_MOVE) { // 
-				//Giro a la izquierda
-				wfl = MOVE_WHEEL;
-				wfr = MOVE_WHEEL;
-				wbl = MOVE_WHEEL;
-				wbr = MOVE_WHEEL;				
-				CAN_cmd_chassis_good(wfr*-1, wbr*-1, wbl*-1, wfl*-1);
+				if (sw1 == 2) {  //Abajo
+					//Giro a la izquierda
+					wfl = -MOVE_WHEEL;
+					wfr = -MOVE_WHEEL;
+					wbl = -MOVE_WHEEL;
+					wbr = -MOVE_WHEEL;						
+				}
+				if (sw1 == 3) {  //Enmedio
+					//Giro a la izquierda
+					wfl = MOVE_WHEEL;
+					wfr = MOVE_WHEEL;
+					wbl = -MOVE_WHEEL;
+					wbr = -MOVE_WHEEL;						
+				}		
+				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*1, wfl*1);
 			}	
 			
 			/*
 			* Joystick derecho
 			*/
 			//Motor 5
-			if (ch0 > RC_MOVE) {
+			if (ch0 < -RC_MOVE) {
 				pos_torreta1 = pos_torreta1 + PASO_TORRETA1;
 				if (pos_torreta1 > MAX_TORRETA1) {
 					pos_torreta1 = MAX_TORRETA1;
 				}
 				__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, pos_torreta1); //Torreta 1
-			} else if (ch0 < RC_MOVE && ch0 > -RC_MOVE) {
-				//pos_torreta1--;
-				if (pos_torreta1 < 1000) {
-					pos_torreta1 = 1000;
-				}				
 			}
-			if (ch0 < -RC_MOVE) {
+			if (ch0 > RC_MOVE) {
 				pos_torreta1 = pos_torreta1 - PASO_TORRETA1;
 				if (pos_torreta1 < MIN_TORRETA1) {
 					pos_torreta1 = MIN_TORRETA1;
@@ -359,8 +373,8 @@ int main(void) {
 				if (tik_start_snail == 0) {
 					tik_start_snail = HAL_GetTick();
 				}
-				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, 1200); //Snail 1
-				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, 1200); //Snail 2				
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, SNAIL_SPEED); //Snail 1
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, SNAIL_SPEED); //Snail 2				
 				
 				if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER) {
 					CAN_cmd_feeder(FEEDER_SPEED);
