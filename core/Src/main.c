@@ -43,6 +43,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include "string.h"
 
 //#include <stdio.h>
@@ -64,6 +65,7 @@ void SystemClock_Config(void);
 
 const RC_ctrl_t *local_rc_ctrl;
 
+long mi_map(long x, long in_min, long in_max, long out_min, long out_max);
 
 void masterLoop(void);
 
@@ -92,8 +94,14 @@ void usart_printf(const char *fmt,...) {
 uint32_t prevTick;
 
 
-#define AMPLI 10
+#define AMPLI 1
 #define RC_MOVE 1000
+#define RC_MIN_MOVE 50
+#define CH_VALUE_MIN 0
+#define CH_VALUE_MAX 660
+#define MIN_MOVE_WHEEL 500
+#define MAX_MOVE_WHEEL 2000
+#define TURN_FACTOR 0.5
 #define MOVE_WHEEL 1000
 #define TURN_OFFSET 300
 #define INICIAL_TORRETA1 1500
@@ -236,52 +244,64 @@ int main(void) {
 			int wfl = 0;
 			int wfr = 0;
 			
-			if (ch3 > RC_MOVE && ch1 == 0) { // 
+			if (ch3 > RC_MIN_MOVE && ch1 == 0) { // 
 				//Solo para adelante
-				wfl = MOVE_WHEEL*factor_velocidad;
-				wfr = MOVE_WHEEL*factor_velocidad;
-				wbl = MOVE_WHEEL*factor_velocidad;
-				wbr = MOVE_WHEEL*factor_velocidad;
-				//CAN_cmd_gimbal(wfr*-1, wbr*-1, wbl*1, wfl*1);
-				CAN_cmd_chassis_good(wfr*-1, wbr*-1, wbl*1, wfl*1);
-				//HAL_Delay(10);
-				//CAN_cmd_feeder(1000);
-				//CAN_cmd_gimbal_working(3000, 3000, 3000, 3000);
-			}
-			if (ch3 < -RC_MOVE && ch2 == 0) {  //
-				//Solo para atras
+				/*
 				wfl = MOVE_WHEEL;
 				wfr = MOVE_WHEEL;
 				wbl = MOVE_WHEEL;
 				wbr = MOVE_WHEEL;
-				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*-1, wfl*-1);
+				*/
+				long fmove = mi_map(ch3, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
+				wfl = fmove;
+				wfr = -fmove;
+				wbl = fmove;
+				wbr = -fmove;				
+				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);
+
+			}
+			if (ch3 < -RC_MIN_MOVE && ch2 == 0) {  //
+				//Solo para atras
+				long fmove = mi_map(abs(ch3), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
+				wfl = -fmove;
+				wfr = fmove;
+				wbl = -fmove;
+				wbr = fmove;
+				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);
 			}
 			
-			if (ch3 > RC_MOVE && ch2 > RC_MOVE) { // 
+			if (ch3 > RC_MIN_MOVE && ch2 > RC_MIN_MOVE) { //
 				//Para adelante a la derecha
-				wfl = MOVE_WHEEL;
-				wfr = MOVE_WHEEL - TURN_OFFSET;
-				wbl = MOVE_WHEEL;
-				wbr = MOVE_WHEEL - TURN_OFFSET;
-				CAN_cmd_chassis_good(wfr*-1, wbr*-1, wbl*1, wfl*1);
+				long fmove = mi_map(ch3, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
+				long fmove_r = mi_map(ch2, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL)*TURN_FACTOR;
+				wfl = fmove;
+				wfr = -fmove + fmove_r;
+				wbl = fmove;
+				wbr = -fmove + fmove_r;					
+				
+				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);
 			}			
 
-			if (ch3 > RC_MOVE && ch2 < -RC_MOVE) { // 
+			if (ch3 > RC_MIN_MOVE && ch2 < -RC_MIN_MOVE) { // 
 				//Para adelante a la izquierda
-				wfl = MOVE_WHEEL - TURN_OFFSET;
-				wfr = MOVE_WHEEL;
-				wbl = MOVE_WHEEL - TURN_OFFSET;
-				wbr = MOVE_WHEEL;
-				CAN_cmd_chassis_good(wfr*-1, wbr*-1, wbl*1, wfl*1);
+				long fmove = mi_map(ch3, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
+				long fmove_l = mi_map(abs(ch2), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL)*TURN_FACTOR;				
+				wfl = fmove - fmove_l;
+				wfr = -fmove;
+				wbl = fmove - fmove_l;
+				wbr = -fmove;
+				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);
 			}	
 
 			if (ch3 < -RC_MOVE && ch2 > RC_MOVE) { // 
 				//Para atras a la derecha
-				wfl = MOVE_WHEEL;
-				wfr = MOVE_WHEEL - TURN_OFFSET;
-				wbl = MOVE_WHEEL;
-				wbr = MOVE_WHEEL - TURN_OFFSET;
-				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*-1, wfl*-1);
+				long fmove = mi_map(abs(ch3), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
+				long fmove_r = mi_map(ch2, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL)*TURN_FACTOR;				
+				wfl = -MOVE_WHEEL;
+				wfr = MOVE_WHEEL - fmove_r;
+				wbl = -MOVE_WHEEL;
+				wbr = MOVE_WHEEL - fmove_r;
+				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);
 			}	
 
 			if (ch3 < -RC_MOVE && ch2 < -RC_MOVE) { // 
@@ -294,38 +314,41 @@ int main(void) {
 			}	
 			
 			
-			if (ch3 == 0 && ch2 > RC_MOVE) { // 
+			if (ch3 == 0 && ch2 > RC_MIN_MOVE) { // 
+				long fmove = mi_map(ch2, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
 				if (sw1 == 2) {  //Abajo
 					//Giro a la derecha en su propio eje
-					wfl = MOVE_WHEEL;
-					wfr = MOVE_WHEEL;
-					wbl = MOVE_WHEEL;
-					wbr = MOVE_WHEEL;					
+					
+					wfl = fmove/2;
+					wfr = fmove/2;
+					wbl = fmove/2;
+					wbr = fmove/2;					
 				}
-				if (sw1 == 3) {   //Enmedio
+				if (sw1 == 3) {   //En medio
 					//Movimiento lateral a la derecha sin avanzar
-					wfl = -MOVE_WHEEL;
-					wfr = -MOVE_WHEEL;
-					wbl = MOVE_WHEEL;
-					wbr = MOVE_WHEEL;					
+					wfl = fmove;
+					wfr = fmove;
+					wbl = -fmove;
+					wbr = -fmove;					
 				}
 				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*1, wfl*1);
 			}	
 			
-			if (ch3 == 0 && ch2 < -RC_MOVE) { // 
+			if (ch3 == 0 && ch2 < -RC_MIN_MOVE) { // 
+				long fmove = mi_map(abs(ch2), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
 				if (sw1 == 2) {  //Abajo
 					//Giro a la izquierda
-					wfl = -MOVE_WHEEL;
-					wfr = -MOVE_WHEEL;
-					wbl = -MOVE_WHEEL;
-					wbr = -MOVE_WHEEL;						
+					wfl = -fmove/2;
+					wfr = -fmove/2;
+					wbl = -fmove/2;
+					wbr = -fmove/2;						
 				}
-				if (sw1 == 3) {  //Enmedio
-					//Giro a la izquierda
-					wfl = MOVE_WHEEL;
-					wfr = MOVE_WHEEL;
-					wbl = -MOVE_WHEEL;
-					wbr = -MOVE_WHEEL;						
+				if (sw1 == 3) {  //En medio
+					//Movimiento lateral a la izquierda sin avanzar
+					wfl = -fmove;
+					wfr = -fmove;
+					wbl = fmove;
+					wbr = fmove;						
 				}		
 				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*1, wfl*1);
 			}	
@@ -334,14 +357,14 @@ int main(void) {
 			* Joystick derecho
 			*/
 			//Motor 5
-			if (ch0 < -RC_MOVE) {
+			if (ch0 < -RC_MIN_MOVE) {
 				pos_torreta1 = pos_torreta1 + PASO_TORRETA1;
 				if (pos_torreta1 > MAX_TORRETA1) {
 					pos_torreta1 = MAX_TORRETA1;
 				}
 				__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, pos_torreta1); //Torreta 1
 			}
-			if (ch0 > RC_MOVE) {
+			if (ch0 > RC_MIN_MOVE) {
 				pos_torreta1 = pos_torreta1 - PASO_TORRETA1;
 				if (pos_torreta1 < MIN_TORRETA1) {
 					pos_torreta1 = MIN_TORRETA1;
@@ -350,7 +373,7 @@ int main(void) {
 			}
 
 			//Motor 6
-			if (ch1 > RC_MOVE) {
+			if (ch1 > RC_MIN_MOVE) {
 				pos_torreta2 = pos_torreta2 + PASO_TORRETA2;
 				if (pos_torreta2 > MAX_TORRETA2) {
 					pos_torreta2 = MAX_TORRETA2;
@@ -360,7 +383,7 @@ int main(void) {
 			} else if (ch1 < RC_MOVE && ch1 > -RC_MOVE) {
 				//__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, 1000); //Torreta 2
 			}
-			if (ch1 < -RC_MOVE) {
+			if (ch1 < -RC_MIN_MOVE) {
 				pos_torreta2 = pos_torreta2 - PASO_TORRETA2;
 				if (pos_torreta2 < MIN_TORRETA2) {
 					pos_torreta2 = MIN_TORRETA2;
@@ -377,7 +400,12 @@ int main(void) {
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, SNAIL_SPEED); //Snail 2				
 				
 				if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER) {
-					CAN_cmd_feeder(FEEDER_SPEED);
+					if (sw0 == 2) {  //Abajo
+						CAN_cmd_feeder(FEEDER_SPEED);
+					}
+					if (sw0 == 3) {  //En medio
+						CAN_cmd_feeder(FEEDER_SPEED / 2);
+					}					
 				}
 			
 			} else if (ch4 < 500 && ch4 > -500) {
@@ -392,6 +420,13 @@ int main(void) {
 		}
 	}
 }
+
+
+
+long mi_map(long x, long in_min, long in_max, long out_min, long out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
 
 /* Loop functions */
 void masterLoop(void) {
