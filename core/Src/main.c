@@ -112,9 +112,12 @@ uint32_t prevTick;
 #define MAX_TORRETA2 1600
 #define MIN_TORRETA2 1300
 #define PASO_TORRETA2 0.5
-#define FEEDER_SPEED 500
-#define FEEDER_REVERSE_SPEED 1000
-#define SNAIL_WAIT_FEEDER 1000
+#define FEEDER_SPEED 700
+#define FEEDER_REVERSE_SPEED 2000
+#define FEEDER_CHAKA_TIME 275
+#define FEEDER_SPEED_FACTOR 3
+#define FEEDER_SLOW_SPEED 300
+#define SNAIL_WAIT_FEEDER 1500
 #define SNAIL_SPEED  1300
 
 int main(void) {
@@ -189,6 +192,9 @@ int main(void) {
 	//__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, FRIC_OFF);
 	uint32_t ptik = 0;
 	uint32_t tik_start_snail = 0;
+	uint32_t tik_start_feeder = 0;
+	
+	int feeder_phase = 0;
 	
 	float pos_torreta1 = INICIAL_TORRETA1; //1000 es ??
 	float pos_torreta2 = INICIAL_TORRETA2; //1000 es ??
@@ -293,24 +299,28 @@ int main(void) {
 				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);
 			}	
 
-			if (ch3 < -RC_MOVE && ch2 > RC_MOVE) { // 
+			if (ch3 < -RC_MIN_MOVE && ch2 > RC_MIN_MOVE) { // 
 				//Para atras a la derecha
 				long fmove = mi_map(abs(ch3), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
 				long fmove_r = mi_map(ch2, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL)*TURN_FACTOR;				
-				wfl = -MOVE_WHEEL;
-				wfr = MOVE_WHEEL - fmove_r;
-				wbl = -MOVE_WHEEL;
-				wbr = MOVE_WHEEL - fmove_r;
+				wfl = -fmove;
+				wfr = fmove - fmove_r;
+				wbl = -fmove;
+				wbr = fmove - fmove_r;
 				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);
 			}	
 
-			if (ch3 < -RC_MOVE && ch2 < -RC_MOVE) { // 
+			if (ch3 < -RC_MIN_MOVE && ch2 < -RC_MIN_MOVE) { // 
 				//Para atras a la izquierda
-				wfl = MOVE_WHEEL - TURN_OFFSET;
-				wfr = MOVE_WHEEL;
-				wbl = MOVE_WHEEL - TURN_OFFSET;
-				wbr = MOVE_WHEEL;
-				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*-1, wfl*-1);
+				
+
+				long fmove = mi_map(abs(ch3), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
+				long fmove_r = mi_map(abs(ch2), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL)*TURN_FACTOR;				
+				wfl = -fmove + fmove_r;
+				wfr = fmove;
+				wbl = -fmove + fmove_r;
+				wbr = fmove;
+				CAN_cmd_chassis_good(wfr, wbr, wbl, wfl);				
 			}	
 			
 			
@@ -395,27 +405,51 @@ int main(void) {
 				//SNAIL 1000 es detenido
 				if (tik_start_snail == 0) {
 					tik_start_snail = HAL_GetTick();
+					tik_start_feeder = HAL_GetTick();
+					feeder_phase = 0;
 				}
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, SNAIL_SPEED); //Snail 1
-				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, SNAIL_SPEED); //Snail 2				
+				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, SNAIL_SPEED); //Snail 2	
 				
-				if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER) {
+				if (HAL_GetTick() - tik_start_feeder > FEEDER_CHAKA_TIME && (feeder_phase < 3 || sw0 == 1) ) {
+					tik_start_feeder = HAL_GetTick();
+					if (feeder_phase == 0) {
+						feeder_phase = 1;
+					} else if (feeder_phase == 1) {
+						feeder_phase = 0;
+					}
+					if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER && sw0 != 1) {
+						feeder_phase = 3;
+					}						
+				}
+				if (feeder_phase == 0) {
+					CAN_cmd_feeder(FEEDER_SPEED*FEEDER_SPEED_FACTOR);
+				}
+				if (feeder_phase == 1) {
+					CAN_cmd_feeder(-FEEDER_SPEED*FEEDER_SPEED_FACTOR);
+				}
+				
+				if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER && feeder_phase == 3) {
+					//CAN_cmd_feeder(FEEDER_SPEED*3);
+					//HAL_Delay(500);
 					if (sw0 == 2) {  //Abajo
 						CAN_cmd_feeder(FEEDER_SPEED);
 					}
 					if (sw0 == 3) {  //En medio
-						CAN_cmd_feeder(FEEDER_SPEED / 2);
+						CAN_cmd_feeder(FEEDER_SLOW_SPEED);
 					}					
 				}
 			
 			} else if (ch4 < 500 && ch4 > -500) {
 				CAN_cmd_feeder(00);
 				tik_start_snail = 0;
+				feeder_phase = 0;
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, 1000); //1000 es detenido
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, 1000);				
 			}
 			if (ch4 < -500) { //Disco		
 				CAN_cmd_feeder(-FEEDER_REVERSE_SPEED);
+				feeder_phase = 0;
 			}				
 		}
 	}
