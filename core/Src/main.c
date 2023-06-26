@@ -118,7 +118,7 @@ uint32_t prevTick;
 #define FEEDER_SPEED_FACTOR 3
 #define FEEDER_SLOW_SPEED 300
 #define SNAIL_WAIT_FEEDER 1500
-#define SNAIL_SPEED  1300
+#define SNAIL_SPEED  1350
 
 int main(void) {
   // Essential Setup
