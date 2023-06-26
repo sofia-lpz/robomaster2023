@@ -92,7 +92,8 @@ void usart_printf(const char *fmt,...) {
 	
 
 uint32_t prevTick;
-
+// para hacer cambios primero (hacer los cambios) despues build target under project or F7, then under flash hit download, then after that debug hit start stop and then run program lastly in the 
+//debug session hit rund it is in the upper right corner next to strat stop debug session button
 
 #define AMPLI 1
 #define RC_MOVE 1000
