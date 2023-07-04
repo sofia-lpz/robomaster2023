@@ -97,7 +97,7 @@ uint32_t prevTick;
 
 #define AMPLI 1
 #define RC_MOVE 1000
-#define RC_MIN_MOVE 50
+#define RC_MIN_MOVE 25//50
 #define CH_VALUE_MIN 0
 #define CH_VALUE_MAX 660
 #define MIN_MOVE_WHEEL 500
@@ -108,20 +108,22 @@ uint32_t prevTick;
 #define INICIAL_TORRETA1 1500
 #define MAX_TORRETA1 2000
 #define MIN_TORRETA1 1000
-#define PASO_TORRETA1 0.5
+#define PASO_TORRETA1 0.3 //was 0.5 
 #define INICIAL_TORRETA2 1400
 #define MAX_TORRETA2 1600
 #define MIN_TORRETA2 1300
-#define PASO_TORRETA2 0.5
-#define FEEDER_SPEED 700
+#define PASO_TORRETA2 0.3 //was 0.5
+#define FEEDER_SPEED 700 // was 700 
 #define FEEDER_REVERSE_SPEED 2000
-#define FEEDER_CHAKA_TIME 275
-#define FEEDER_SPEED_FACTOR 3
+#define FEEDER_CHAKA_TIME 300
+#define FEEDER_SPEED_FACTOR 3 // estaba en 3
 #define FEEDER_SLOW_SPEED 300
-#define SNAIL_WAIT_FEEDER 1500
-#define SNAIL_SPEED  1450
+#define SNAIL_WAIT_FEEDER 2000 //was 1500
+#define SNAIL_SPEED  1400 // was 1350
+#define SNAIL_WAIT_SPOOLING 500 //
+#define MAX_RND_INTERVAL 0
 
-int main(void) {
+                                                                                                                                                             int main(void) {
   // Essential Setup
 	//printf("Hola");
   HAL_Init();
@@ -194,6 +196,7 @@ int main(void) {
 	uint32_t ptik = 0;
 	uint32_t tik_start_snail = 0;
 	uint32_t tik_start_feeder = 0;
+	uint32_t tik_start_shooting = 0;
 	
 	int feeder_phase = 0;
 	
@@ -367,7 +370,7 @@ int main(void) {
 			/*
 			* Joystick derecho
 			*/
-			//Motor 5
+			//Motor 5 Giro en su eje		
 			if (ch0 < -RC_MIN_MOVE) {
 				pos_torreta1 = pos_torreta1 + PASO_TORRETA1;
 				if (pos_torreta1 > MAX_TORRETA1) {
@@ -383,9 +386,9 @@ int main(void) {
 				__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, pos_torreta1); //Torreta 1
 			}
 
-			//Motor 6
+			//Motor 6  Para abajo y arriba torreta
 			if (ch1 > RC_MIN_MOVE) {
-				pos_torreta2 = pos_torreta2 + PASO_TORRETA2;
+				pos_torreta2 = pos_torreta2 - PASO_TORRETA2; // cambio a negativo 
 				if (pos_torreta2 > MAX_TORRETA2) {
 					pos_torreta2 = MAX_TORRETA2;
 				}				
@@ -395,7 +398,7 @@ int main(void) {
 				//__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, 1000); //Torreta 2
 			}
 			if (ch1 < -RC_MIN_MOVE) {
-				pos_torreta2 = pos_torreta2 - PASO_TORRETA2;
+				pos_torreta2 = pos_torreta2 + PASO_TORRETA2; // cambio a negativo
 				if (pos_torreta2 < MIN_TORRETA2) {
 					pos_torreta2 = MIN_TORRETA2;
 				}					
@@ -407,39 +410,47 @@ int main(void) {
 				if (tik_start_snail == 0) {
 					tik_start_snail = HAL_GetTick();
 					tik_start_feeder = HAL_GetTick();
+					tik_start_shooting = HAL_GetTick();
 					feeder_phase = 0;
 				}
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, SNAIL_SPEED); //Snail 1
 				__HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_3, SNAIL_SPEED); //Snail 2	
 				
-				if (HAL_GetTick() - tik_start_feeder > FEEDER_CHAKA_TIME && (feeder_phase < 3 || sw0 == 1) ) {
-					tik_start_feeder = HAL_GetTick();
-					if (feeder_phase == 0) {
-						feeder_phase = 1;
-					} else if (feeder_phase == 1) {
-						feeder_phase = 0;
+				
+				if (HAL_GetTick() -  tik_start_shooting > SNAIL_WAIT_SPOOLING) {
+
+					if (HAL_GetTick() - tik_start_feeder > FEEDER_CHAKA_TIME && (feeder_phase < 3 || sw0 == 1) ) {
+						tik_start_feeder = HAL_GetTick();
+						if (feeder_phase == 0) {
+							feeder_phase = 1;
+						} else if (feeder_phase == 1) {
+							feeder_phase = 0;
+						}
+						if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER && sw0 != 1) {
+							feeder_phase = 3;
+						}						
 					}
-					if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER && sw0 != 1) {
-						feeder_phase = 3;
-					}						
-				}
-				if (feeder_phase == 0) {
-					CAN_cmd_feeder(FEEDER_SPEED*FEEDER_SPEED_FACTOR);
-				}
-				if (feeder_phase == 1) {
-					CAN_cmd_feeder(-FEEDER_SPEED*FEEDER_SPEED_FACTOR);
+					if (feeder_phase == 0) {
+						CAN_cmd_feeder(FEEDER_SPEED*FEEDER_SPEED_FACTOR);
+					}
+					if (feeder_phase == 1) {
+						CAN_cmd_feeder(-FEEDER_SPEED*FEEDER_SPEED_FACTOR);
+					}
+					
+					if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER && feeder_phase == 3) {
+						//CAN_cmd_feeder(FEEDER_SPEED*3);
+						//HAL_Delay(500);
+						if (sw0 == 2) {  //Abajo
+							CAN_cmd_feeder(FEEDER_SPEED);
+						}
+						if (sw0 == 3) {  //En medio
+							CAN_cmd_feeder(FEEDER_SLOW_SPEED);
+						}					
+					}					
+					
 				}
 				
-				if (HAL_GetTick() - tik_start_snail > SNAIL_WAIT_FEEDER && feeder_phase == 3) {
-					//CAN_cmd_feeder(FEEDER_SPEED*3);
-					//HAL_Delay(500);
-					if (sw0 == 2) {  //Abajo
-						CAN_cmd_feeder(FEEDER_SPEED);
-					}
-					if (sw0 == 3) {  //En medio
-						CAN_cmd_feeder(FEEDER_SLOW_SPEED);
-					}					
-				}
+
 			
 			} else if (ch4 < 500 && ch4 > -500) {
 				CAN_cmd_feeder(00);
