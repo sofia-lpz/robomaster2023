@@ -338,7 +338,7 @@ uint32_t prevTick;
 					wbl = fmove/2;
 					wbr = fmove/2;					
 				}
-				if (sw1 == 3) {   //En medio
+				if (sw1 == 1) {   //En medio //was 3 now 1
 					//Movimiento lateral a la derecha sin avanzar
 					wfl = fmove;
 					wfr = fmove;
@@ -348,7 +348,7 @@ uint32_t prevTick;
 				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*1, wfl*1);
 			}	
 			
-			if (ch3 == 0 && ch2 < -RC_MIN_MOVE) { // 
+			if (ch3 == 0  && ch2 < -RC_MIN_MOVE) { // 
 				long fmove = mi_map(abs(ch2), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
 				if (sw1 == 2) {  //Abajo
 					//Giro a la izquierda
@@ -357,7 +357,7 @@ uint32_t prevTick;
 					wbl = -fmove/2;
 					wbr = -fmove/2;						
 				}
-				if (sw1 == 3) {  //En medio
+				if (sw1 == 1) {  //En medio //was 3 now 1
 					//Movimiento lateral a la izquierda sin avanzar
 					wfl = -fmove;
 					wfr = -fmove;
@@ -398,7 +398,7 @@ uint32_t prevTick;
 				//__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, 1000); //Torreta 2
 			}
 			if (ch1 < -RC_MIN_MOVE) {
-				pos_torreta2 = pos_torreta2 + PASO_TORRETA2; // cambio a negativo
+				pos_torreta2 = pos_torreta2 + PASO_TORRETA2;
 				if (pos_torreta2 < MIN_TORRETA2) {
 					pos_torreta2 = MIN_TORRETA2;
 				}					
