@@ -97,18 +97,18 @@ uint32_t prevTick;
 
 #define AMPLI 1
 #define RC_MOVE 1000
-#define RC_MIN_MOVE 25//50
+#define RC_MIN_MOVE 50 //50
 #define CH_VALUE_MIN 0
 #define CH_VALUE_MAX 660
 #define MIN_MOVE_WHEEL 500
-#define MAX_MOVE_WHEEL 2000
+#define MAX_MOVE_WHEEL 3000 //was 2000 // velocidad motor
 #define TURN_FACTOR 0.5
 #define MOVE_WHEEL 1000
 #define TURN_OFFSET 300
 #define INICIAL_TORRETA1 1500
 #define MAX_TORRETA1 2000
 #define MIN_TORRETA1 1000
-#define PASO_TORRETA1 0.3 //was 0.5 
+#define PASO_TORRETA1 0.5 //was 0.5 
 #define INICIAL_TORRETA2 1400
 #define MAX_TORRETA2 1600
 #define MIN_TORRETA2 1300
@@ -331,7 +331,7 @@ uint32_t prevTick;
 			if (ch3 == 0 && ch2 > RC_MIN_MOVE) { // 
 				long fmove = mi_map(ch2, CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
 				if (sw1 == 2) {  //Abajo
-					//Giro a la derecha en su propio eje
+					//Giro a la derecha en su propio eje  // cambio a negativo
 					
 					wfl = fmove/2;
 					wfr = fmove/2;
@@ -348,10 +348,10 @@ uint32_t prevTick;
 				CAN_cmd_chassis_good(wfr*1, wbr*1, wbl*1, wfl*1);
 			}	
 			
-			if (ch3 == 0  && ch2 < -RC_MIN_MOVE) { // 
+			if (ch3 == 0  && ch2 < -RC_MIN_MOVE) { // cambio a negativo
 				long fmove = mi_map(abs(ch2), CH_VALUE_MIN, CH_VALUE_MAX, MIN_MOVE_WHEEL, MAX_MOVE_WHEEL);
 				if (sw1 == 2) {  //Abajo
-					//Giro a la izquierda
+					//Giro a la izquierda //cambio a negativo  
 					wfl = -fmove/2;
 					wfr = -fmove/2;
 					wbl = -fmove/2;
@@ -372,14 +372,14 @@ uint32_t prevTick;
 			*/
 			//Motor 5 Giro en su eje		
 			if (ch0 < -RC_MIN_MOVE) {
-				pos_torreta1 = pos_torreta1 + PASO_TORRETA1;
+				pos_torreta1 = pos_torreta1 - PASO_TORRETA1; // era mas (para cambio a direccion)
 				if (pos_torreta1 > MAX_TORRETA1) {
 					pos_torreta1 = MAX_TORRETA1;
 				}
 				__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, pos_torreta1); //Torreta 1
 			}
 			if (ch0 > RC_MIN_MOVE) {
-				pos_torreta1 = pos_torreta1 - PASO_TORRETA1;
+				pos_torreta1 = pos_torreta1 + PASO_TORRETA1; // era menos ( para cambio de direccion)
 				if (pos_torreta1 < MIN_TORRETA1) {
 					pos_torreta1 = MIN_TORRETA1;
 				}				
@@ -388,7 +388,7 @@ uint32_t prevTick;
 
 			//Motor 6  Para abajo y arriba torreta
 			if (ch1 > RC_MIN_MOVE) {
-				pos_torreta2 = pos_torreta2 - PASO_TORRETA2; // cambio a negativo 
+				pos_torreta2 = pos_torreta2 + PASO_TORRETA2;  // control torreta pitch
 				if (pos_torreta2 > MAX_TORRETA2) {
 					pos_torreta2 = MAX_TORRETA2;
 				}				
@@ -398,7 +398,7 @@ uint32_t prevTick;
 				//__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, 1000); //Torreta 2
 			}
 			if (ch1 < -RC_MIN_MOVE) {
-				pos_torreta2 = pos_torreta2 + PASO_TORRETA2;
+				pos_torreta2 = pos_torreta2 - PASO_TORRETA2;
 				if (pos_torreta2 < MIN_TORRETA2) {
 					pos_torreta2 = MIN_TORRETA2;
 				}					
